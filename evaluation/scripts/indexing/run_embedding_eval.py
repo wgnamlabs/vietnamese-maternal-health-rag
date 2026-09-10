@@ -16,7 +16,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
 # Project root/src
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from indexing.embedding import MODELS_TO_COMPARE, SentenceTransformerEmbedder
@@ -615,17 +615,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--chunks-dir",
         type=Path,
-        default=PROJECT_ROOT / "evaluation" / "results" / "chunks_cache",
+        default=PROJECT_ROOT / "evaluation" / "results" / "phase1_indexing" / "chunks_cache",
     )
     parser.add_argument(
         "--questions",
         type=Path,
-        default=PROJECT_ROOT / "evaluation" / "eval_questions.json",
+        default=PROJECT_ROOT / "evaluation" / "datasets" / "eval_questions.json",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=PROJECT_ROOT / "evaluation" / "results" / "embedding_eval",
+        default=PROJECT_ROOT / "evaluation" / "results" / "phase1_indexing" / "embedding_eval",
     )
     return parser.parse_args()
 

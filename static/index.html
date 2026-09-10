@@ -974,7 +974,7 @@
     let sourcesHtml = '';
     if (sources && sources.length > 0) {
       const items = sources.map((s, i) =>
-        `<div class="src-item">${i+1}. ${escapeHtml(s.source)}${s.section ? ` — <em>${escapeHtml(s.section)}</em>` : ''}</div>`
+        `<div class="src-item">[${escapeHtml(s.reference_number)}] ${escapeHtml(s.claim || s.chunk_id || '')}</div>`
       ).join('');
       sourcesHtml = `
         <div class="sources-block">
@@ -985,7 +985,7 @@
 
     let latencyHtml = '';
     if (latency && latency.total) {
-      latencyHtml = `<div class="latency-tag">⏱️ ${latency.total?.toFixed(1)}s</div>`;
+      latencyHtml = `<div class="latency-tag">⏱️ ${Number(latency.total_seconds ?? latency.total).toFixed(1)}s</div>`;
     }
 
     const safeContent = role === 'bot' ? formatMarkdown(content) : escapeHtml(content);

@@ -1,127 +1,153 @@
-"""
-web_app.py -- FastAPI server cho giao diện web Chatbot Me Bau.
+"""FastAPI web application for the local maternal-health RAG assistant.
 
-Chay:
-    python web_app.py
-    Mo trinh duyet tai: http://localhost:8000
-
-Yeu cau: pip install fastapi uvicorn
-Pipeline va Qdrant phai dang chay (giong nhu ask.py).
+Run from the project root with Qdrant and Ollama available locally.
 """
+
+from __future__ import annotations
 
 import sys
-if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
-    sys.stdout.reconfigure(encoding="utf-8")
-
-import pickle
-import logging
+import time
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parent
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from indexing.embedding import SentenceTransformerEmbedder
-from indexing.embedding.config import EmbedderConfig
-from indexing.vector_store import QdrantVectorStore, QdrantStoreConfig
-from generation.pipeline.main import run_pipeline
-
-logging.basicConfig(level=logging.WARNING)
-logger = logging.getLogger(__name__)
-
-# ── Khởi tạo infra một lần duy nhất (giống ask.py) ──────────────────────────
-print("[web_app] Dang tai mo hinh embedding va ket noi database...")
+from pipeline import FinalResponse, RAGPipeline  # noqa: E402
 
 
-embedder = SentenceTransformerEmbedder(EmbedderConfig(
-    model_name="AITeamVN/Vietnamese_Embedding_v2",
-    batch_size=32,
-    max_seq_length=2048,
-    device="cuda",
-))
-embedder.load()
+print("[web_app] Starting the assistant...")
+pipeline: RAGPipeline | None = None
+print("[web_app] Ready at http://localhost:8000")
 
-qdrant = QdrantVectorStore(config=QdrantStoreConfig(collection_name="phu_san_chunks"))
-qdrant.load()
+app = FastAPI(
+    title="RAG Chatbot Tư Vấn Phụ Sản",
+    version="1.0.0",
+    description="Local-first Vietnamese obstetric and maternal-health RAG chatbot.",
+)
 
-with open("data/vector_db/bm25_index.pkl", "rb") as f:
-    bm25_data = pickle.load(f)
-
-print("[web_app] San sang! Truy cap http://localhost:8000")
-
-
-# ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="Chatbot Tư Vấn Sức Khỏe Mẹ Bầu", version="1.0.0")
-
-# Serve static files (index.html + assets)
-STATIC_DIR = Path(__file__).parent / "static"
-STATIC_DIR.mkdir(exist_ok=True)
+STATIC_DIR = PROJECT_ROOT / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 class ChatRequest(BaseModel):
-    message: str
+    """Incoming chat request."""
+
+    message: str = Field(min_length=1)
 
 
 class ChatResponse(BaseModel):
+    """User-facing response returned by the web API."""
+
     answer: str
+    citations: list[dict]
     sources: list[dict]
-    latency: dict
+    method: str
+    verification_status: str | None = None
+    insufficient_evidence: bool = False
+    latency: dict[str, float]
+
+
+def _get_pipeline() -> RAGPipeline:
+    """Initialize the local runtime only when the first query arrives."""
+    global pipeline
+    if pipeline is None:
+        pipeline = RAGPipeline(PROJECT_ROOT)
+    return pipeline
+
+
+def _citation_sources(result: FinalResponse) -> list[dict]:
+    """Convert claim-level citations to UI-friendly source entries."""
+    sources: list[dict] = []
+    seen: set[tuple[int, str]] = set()
+    for citation in result.citations:
+        reference = int(citation.get("reference_number", 0))
+        chunk_id = str(citation.get("chunk_id", ""))
+        key = (reference, chunk_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append(
+            {
+                "reference_number": reference,
+                "chunk_id": chunk_id,
+                "claim": citation.get("claim", ""),
+            }
+        )
+    return sources
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index():
-    """Serve giao diện chính."""
+def index() -> HTMLResponse:
+    """Serve the chat UI."""
     html_path = STATIC_DIR / "index.html"
-    if html_path.exists():
-        return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
-    return HTMLResponse("<h1>Chưa có file static/index.html</h1>", status_code=404)
+    if not html_path.exists():
+        return HTMLResponse("<h1>Chưa có file static/index.html</h1>", status_code=404)
+    return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
 
 @app.get("/favicon.ico")
-async def favicon():
-    from fastapi.responses import FileResponse
+def favicon() -> FileResponse:
+    """Serve the favicon."""
     return FileResponse(STATIC_DIR / "favicon.ico")
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
-    """Endpoint nhận câu hỏi, trả về câu trả lời từ RAG pipeline."""
-    query = req.message.strip()
+def chat(request: ChatRequest) -> ChatResponse:
+    """Answer one user query through the local RAG assistant."""
+    query = request.message.strip()
     if not query:
-        return ChatResponse(answer="Mẹ vui lòng nhập câu hỏi nhé! 💕", sources=[], latency={})
+        return ChatResponse(
+            answer="Mẹ vui lòng nhập câu hỏi nhé!",
+            citations=[],
+            sources=[],
+            method="input_validation",
+            latency={"total_seconds": 0.0},
+        )
 
-    result = run_pipeline(
-        query=query,
-        qdrant_store=qdrant,
-        bm25_data=bm25_data,
-        embedder=embedder,
-    )
-
-    # Deduplicate sources (giống ask.py)
-    seen = set()
-    sources_list = []
-    for s in (result.sources_used or []):
-        key = f"{s.source} § {s.section or 'N/A'}"
-        if key not in seen:
-            seen.add(key)
-            sources_list.append({"source": s.source, "section": s.section or ""})
+    started = time.perf_counter()
+    try:
+        result = _get_pipeline().answer_query(query)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The local assistant is temporarily unavailable. Please verify Qdrant, Ollama, and local model artifacts.",
+        ) from exc
+    elapsed = time.perf_counter() - started
+    metadata = result.metadata or {}
 
     return ChatResponse(
         answer=result.answer,
-        sources=sources_list,
-        latency=result.latency_breakdown or {},
+        citations=result.citations,
+        sources=_citation_sources(result),
+        method=result.method,
+        verification_status=metadata.get("verification_status"),
+        insufficient_evidence=bool(metadata.get("insufficient_evidence", False)),
+        latency={"total_seconds": round(elapsed, 3)},
     )
 
 
 @app.get("/api/health")
-async def health():
-    return {"status": "ok", "model": "qwen3.5:4b"}
+def health() -> dict[str, object]:
+    """Return a lightweight service health response."""
+    return {
+        "status": "ok",
+        "runtime_initialized": pipeline is not None,
+        "pipeline": "local maternal-health RAG assistant",
+        "generation_model": "qwen3.5:4b",
+        "generation_thinking": False,
+        "score_gate_threshold": 0.10,
+        "local_only": True,
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

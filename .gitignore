@@ -97,3 +97,20 @@ generation_pipeline_prompt.md
 data/raw/*.pdf
 data/interim/*.md
 data/cleaned/*.md
+
+# ============================================================
+# Organized evaluation outputs and local diagnostics
+# ============================================================
+# Results are reproducible generated artifacts; keep them locally but do not push.
+evaluation/results/
+evaluation/archive/
+# Local audit logs from generation/runtime.
+*.jsonl
+# Python/test/tool caches.
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.goosehints

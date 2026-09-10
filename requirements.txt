@@ -34,7 +34,7 @@ pyvi>=0.1.1            # Fallback tokenizer nếu underthesea lỗi
 # BAAI/bge-reranker-v2-m3 dùng sentence-transformers — đã có ở trên
 
 # ============================================================
-# LLM via Ollama (HTTP client, không cần package ollama)
+# LLM via Ollama HTTP API
 # ============================================================
 requests>=2.32.0       # HTTP client cho Ollama REST API
 
@@ -50,7 +50,6 @@ datasets>=3.6.0            # HuggingFace datasets (dùng trong RAGAS)
 # ============================================================
 fastapi>=0.141.1          # Web framework cho giao diện chat (web_app.py)
 uvicorn>=0.52.1           # ASGI server chạy FastAPI
-streamlit>=1.45.0         # Giữ lại nếu cần UI prototype nhanh
 
 # ============================================================
 # Validation / Data

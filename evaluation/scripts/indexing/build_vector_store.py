@@ -54,7 +54,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from indexing.chunking.base import Chunk
@@ -288,7 +288,7 @@ def build_stores(
         base_path
         / "evaluation"
         / "results"
-        / "chunks_cache"
+        / "phase1_indexing" / "chunks_cache"
         / f"{chunker_name}.json"
     )
 

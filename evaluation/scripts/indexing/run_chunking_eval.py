@@ -11,7 +11,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
 # Ensure src is in path.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
 
 from indexing.chunking import SemanticChunker, HierarchicalChunker
 from indexing.chunking.config import SemanticChunkerConfig, HierarchicalChunkerConfig
@@ -247,7 +247,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="So sánh Structure-aware Semantic vs Hierarchical Chunking"
     )
-    base_path = Path(__file__).resolve().parent.parent
+    base_path = Path(__file__).resolve().parents[3]
     parser.add_argument(
         "--cleaned-dir",
         type=Path,
@@ -256,7 +256,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=base_path / "evaluation" / "results" / "chunks_cache",
+        default=base_path / "evaluation" / "results" / "phase1_indexing" / "chunks_cache",
     )
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
