@@ -489,7 +489,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=PROJECT_ROOT / "evaluation" / "results" / "retrieval" / "retrieval_eval",
+        default=PROJECT_ROOT / "evaluation" / "results" / "retrieval",
     )
     parser.add_argument("--qdrant-host", default="localhost")
     parser.add_argument("--qdrant-port", type=int, default=6333)
