@@ -33,6 +33,8 @@
     "type": "RRF",
     "rrf_k": 60,
     "candidate_pool_top_k": 30,
+    "dense_top_k": 30,
+    "sparse_top_k": 30,
     "final_top_k": 5
   },
   "reranker": {
@@ -40,10 +42,12 @@
     "fp16": true,
     "max_length": 1024,
     "batch_size": 16,
+    "reranker_batch_size": 16,
     "sentence_transformers_version": "3.3.1"
   },
   "ood_rejection": {
-    "condition": "reranker top-1 score < 0.3"
+    "condition": "reranker top-1 score < 0.3",
+    "ood_threshold": 0.3
   },
   "evidence_match": {
     "min_coverage": 0.3,

@@ -1,0 +1,76 @@
+﻿[PASS] config.candidate_pool_top_k  ->  actual=30 expected=30
+[PASS] config.dense_top_k  ->  actual=30 expected=30
+[PASS] config.sparse_top_k  ->  actual=30 expected=30
+[PASS] config.rrf_k  ->  actual=60 expected=60
+[PASS] config.final_top_k  ->  actual=5 expected=5
+[PASS] config.ood_threshold  ->  actual=0.3 expected=0.3
+[PASS] config.reranker_model_name  ->  actual='BAAI/bge-reranker-v2-m3' expected='BAAI/bge-reranker-v2-m3'
+[PASS] config.reranker_device  ->  actual='cuda' expected='cuda'
+[PASS] config.reranker_batch_size  ->  actual=16 expected=16
+[PASS] embedder.model_name  ->  actual='Qwen/Qwen3-Embedding-0.6B' expected='Qwen/Qwen3-Embedding-0.6B'
+[PASS] embedder.device  ->  actual='cpu' expected='cpu'
+[PASS] qdrant.collection_name  ->  actual='chunks' expected='chunks'
+[PASS] qdrant.vector_size  ->  actual=1024 expected=1024
+[PASS] qdrant.distance  ->  actual='cosine' expected='cosine'
+[PASS] reranker max_length=1024 (hard-coded)
+[PASS] reranker fp16 (hard-coded)
+[PASS] chunking.max_tokens  ->  actual=512
+[PASS] chunking.tokenizer  ->  actual=Qwen/Qwen3-Embedding-0.6B
+[PASS] chunking.overlap
+[PASS] manifest.dense_top_k  ->  values=[30] expected=30
+[PASS] manifest.sparse_top_k  ->  values=[30] expected=30
+[PASS] manifest.candidate_pool_top_k  ->  values=[30] expected=30
+[PASS] manifest.rrf_k  ->  values=[60] expected=60
+[PASS] manifest.final_top_k  ->  values=[5] expected=5
+[PASS] manifest.ood_threshold  ->  values=[0.3] expected=0.3
+[PASS] manifest.reranker_batch_size  ->  values=[16] expected=16
+[PASS] manifest mentions Qwen/Qwen3-Embedding-0.6B
+[PASS] manifest mentions BAAI/bge-reranker-v2-m3
+[PASS] manifest mentions 1182
+[PASS] manifest has no 4B / 2560 leftovers
+[PASS] qdrant points_count  ->  actual=1182
+[PASS] qdrant vector size/distance  ->  size=1024 distance=cosine
+[PASS] bm25 chunk count  ->  actual=1182
+[PASS] bm25 tokenizer  ->  actual=underthesea
+[PASS] chunk file count  ->  actual=1182
+[PASS] chunk IDs identical across qdrant/bm25/chunk_file
+[PASS] hash bm25_index.pkl recorded in manifest  ->  2e4352b64f4e45d4...
+[PASS] hash eval_questions.json recorded in manifest  ->  950d01ad47465bca...
+[PASS] hash chunk file recorded in manifest  ->  aaa4045716016aa6...
+[PASS] reports dev: pool/final/rrf  ->  pool=30 final=5 rrf=60
+[PASS] reports dev: reranker
+[PASS] reports dev: hybrid_rerank recall@3  ->  actual=0.9038 expected=0.9038
+[PASS] reports dev: hybrid_rerank recall@5  ->  actual=0.9615 expected=0.9615
+[PASS] reports dev: hybrid_rerank recall@10  ->  actual=0.9808 expected=0.9808
+[PASS] reports dev: hybrid_rerank mrr  ->  actual=0.8103 expected=0.8103
+[PASS] reports dev: hybrid_rerank ndcg@5  ->  actual=0.8465 expected=0.8465
+[WARN] results/retrieval_summary_dev.json  ->  file missing
+[PASS] reports test: pool/final/rrf  ->  pool=30 final=5 rrf=60
+[PASS] reports test: reranker
+[PASS] reports test: hybrid_rerank recall@3  ->  actual=0.9720 expected=0.9720
+[PASS] reports test: hybrid_rerank recall@5  ->  actual=0.9930 expected=0.9930
+[PASS] reports test: hybrid_rerank recall@10  ->  actual=0.9930 expected=0.9930
+[PASS] reports test: hybrid_rerank mrr  ->  actual=0.8865 expected=0.8865
+[PASS] reports test: hybrid_rerank ndcg@5  ->  actual=0.9074 expected=0.9074
+[WARN] results/retrieval_summary_test.json  ->  file missing
+[PASS] README contains 96.15%
+[PASS] README contains 81.03%
+[PASS] README contains 84.65%
+[PASS] README contains 99.30%
+[PASS] README contains 88.65%
+[PASS] README contains 90.74%
+[PASS] README does not contain phu_san_chunks
+[PASS] README does not contain Qwen3-Embedding-4B
+[PASS] README does not contain 91.13%
+[PASS] README does not contain 92.14%
+[PASS] README latency median = log (0.985 s)
+[PASS] README latency p95 = log (1.207 s)
+[PASS] requirements.txt is ASCII-only (pip on Windows)
+[PASS] requirements.txt has no ragas
+[PASS] requirements.frozen.txt is ASCII-only (pip on Windows)
+[FAIL] git working tree clean  ->  M data/vector_db/index_manifest.json | ?? evaluation/reports/verify_freeze_output.txt
+
+============================================================
+PASS=68  FAIL=1  WARN=2  SKIP=0
+NOT CONSISTENT. Failing checks:
+  - git working tree clean: M data/vector_db/index_manifest.json | ?? evaluation/reports/verify_freeze_output.txt
