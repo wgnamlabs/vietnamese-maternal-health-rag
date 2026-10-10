@@ -131,9 +131,9 @@ def health() -> dict[str, object]:
         "embedding_resident": pipeline is not None and pipeline.dense is not None,
         "reranker_device": "cuda",
         "reranker_resident": pipeline is not None and pipeline.reranker is not None,
-        "generation_model": "qwen3.5:2b",
-        "generation_warmed": pipeline is not None and pipeline.generator.generation_warmed,
-        "score_gate_threshold": pipeline.generator.config.score_gate_threshold if pipeline else 0.60,
+        "generation_model": "None",
+        "generation_warmed": False,
+        "score_gate_threshold": 0.3,
     }
 
 

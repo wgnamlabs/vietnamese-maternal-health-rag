@@ -11,9 +11,6 @@ from threading import RLock
 
 import torch
 
-from generation.config import GenerationConfig
-from generation.generator import AnswerGenerator, GenerationResult
-from generation.prompt_builder import build_prompt
 from retrieval.config import RetrievalConfig, default_retrieval_config
 from retrieval.dense_retriever import DenseRetriever
 from retrieval.fusion import HybridRetriever
@@ -34,10 +31,6 @@ class RAGPipeline:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
         self.retrieval_config: RetrievalConfig = default_retrieval_config(project_root)
-        self.generator = AnswerGenerator(
-            GenerationConfig(),
-            project_root / "evaluation" / "results" / "generation" / "runtime_audit",
-        )
         self.dense: DenseRetriever | None = None
         self.sparse: SparseRetriever | None = None
         self.hybrid: HybridRetriever | None = None
@@ -78,8 +71,7 @@ class RAGPipeline:
             self._vram_log("after_embedding_warmup")
             self._ensure_reranker()
             self._vram_log("after_reranker_warmup")
-            self.generator.warm_up()
-            self._vram_log("after_generation_warmup")
+            self._vram_log("after_reranker_warmup")
 
     def _ensure_reranker(self) -> Reranker:
         """Initialize the reranker once and keep it resident."""
@@ -114,17 +106,12 @@ class RAGPipeline:
             ranked = self._ensure_reranker().rerank(raw_query, candidates, self.retrieval_config.final_top_k)
             self._log_timing("reranker_total", time.perf_counter() - reranker_start)
 
-            prompt_start = time.perf_counter()
-            prompt_payload = build_prompt(raw_query, ranked)
-            self._log_timing("prompt_build", time.perf_counter() - prompt_start)
-
-            generation_start = time.perf_counter()
-            result = self.generator.generate(prompt_payload, ranked[0].score if ranked else 0.0)
-            self._log_timing("generation", time.perf_counter() - generation_start)
-
-        self._log_timing("end_to_end", time.perf_counter() - total_start)
         self._log_timing("end_to_end", time.perf_counter() - total_start)
         
+        answer_text = "No answer generated."
+        if ranked:
+            answer_text = f"Top document retrieved: {ranked[0].chunk_id} with score {ranked[0].score:.4f}"
+
         return FinalResponse(
-            answer=result.answer
+            answer=answer_text
         )
