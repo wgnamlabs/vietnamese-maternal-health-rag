@@ -76,18 +76,6 @@ def _resolve_qdrant_mode(mode: str) -> str:
     return "local" if _is_notebook_cloud() else "server"
 
 
-def _model_cache_dir_name(model_name: str) -> str:
-    """Resolve the dedicated benchmark chunk-cache directory for a model."""
-    known_directories = {
-        "BAAI/bge-m3": "bge_m3",
-        "Qwen/Qwen3-Embedding-0.6B": "qwen3_embedding_0_6b",
-        "AITeamVN/Vietnamese_Embedding_v2": "vietnamese_embedding_v2",
-    }
-    return known_directories.get(
-        model_name,
-        model_name.replace("/", "_").replace("-", "_").lower(),
-    )
-
 
 def _selected_embedder_config(
     model_name: str,
@@ -284,7 +272,6 @@ def build_stores(
         / "evaluation"
         / "results"
         / "indexing"
-        / _model_cache_dir_name(emb_model)
         / "chunks_cache"
         / f"{chunker_name}.json"
     )
