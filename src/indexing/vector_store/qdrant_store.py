@@ -129,7 +129,7 @@ class QdrantVectorStore(BaseVectorStore):
         """Tạo collection và chặn reuse collection sai dimension/distance.
 
         Điều này đặc biệt quan trọng khi chuyển từ index cũ 1024 chiều
-        sang Qwen3-Embedding-4B 2560 chiều.
+        sang Qwen3-Embedding-0.6B 1024 chiều.
         """
         from qdrant_client.models import Distance, VectorParams
 

@@ -108,9 +108,12 @@ class RAGPipeline:
 
         self._log_timing("end_to_end", time.perf_counter() - total_start)
         
-        answer_text = "No answer generated."
+        answer_text = "Không có đủ thông tin trong tài liệu hiện có để trả lời câu hỏi này."
         if ranked:
-            answer_text = f"Top document retrieved: {ranked[0].chunk_id} with score {ranked[0].score:.4f}"
+            if ranked[0].score < self.retrieval_config.ood_threshold:
+                answer_text = f"Bị từ chối do điểm reranker cao nhất ({ranked[0].score:.4f}) < {self.retrieval_config.ood_threshold}"
+            else:
+                answer_text = f"Top document retrieved: {ranked[0].chunk_id} with score {ranked[0].score:.4f}"
 
         return FinalResponse(
             answer=answer_text

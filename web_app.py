@@ -133,7 +133,7 @@ def health() -> dict[str, object]:
         "reranker_resident": pipeline is not None and pipeline.reranker is not None,
         "generation_model": "None",
         "generation_warmed": False,
-        "score_gate_threshold": 0.3,
+        "ood_threshold": pipeline.retrieval_config.ood_threshold if pipeline else 0.3,
     }
 
 

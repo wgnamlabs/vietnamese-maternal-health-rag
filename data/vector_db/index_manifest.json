@@ -13,7 +13,10 @@
   "chunker": {
     "type": "hierarchical",
     "max_chunk_tokens": 512,
-    "tokenizer": "BAAI/bge-m3",
+    "tokenizer": "Qwen/Qwen3-Embedding-0.6B",
+    "child_chunk_overlap": 100,
+    "table_row_overlap": 0,
+    "breadcrumb": "prepended_to_chunk_text",
     "total_chunks": 1182
   },
   "embedding": {
@@ -35,7 +38,9 @@
   "reranker": {
     "model": "BAAI/bge-reranker-v2-m3",
     "fp16": true,
-    "max_length": 1024
+    "max_length": 1024,
+    "batch_size": 16,
+    "sentence_transformers_version": "3.3.1"
   },
   "ood_rejection": {
     "condition": "reranker top-1 score < 0.3"
