@@ -15,7 +15,7 @@ class GenerationConfig:
     enable_thinking: bool = False
     num_predict: int = 4096
     num_ctx: int = 8192
-    score_gate_threshold: float = 0.10
+    score_gate_threshold: float = 0.3
     max_retries: int = 2
     language_retry_count: int = 1
     enable_faithfulness_llm: bool = False

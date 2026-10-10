@@ -32,6 +32,7 @@ class RetrievalConfig:
     # Embedding query encoding runs on CPU; reserve GPU for reranker + Ollama.
     reranker_device: str = "cuda"
     reranker_batch_size: int = 16
+    ood_threshold: float = 0.3
 
     def __post_init__(self) -> None:
         for name in (
