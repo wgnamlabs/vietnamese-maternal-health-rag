@@ -946,7 +946,13 @@
       allBubbles.forEach(row => {
         const role = row.classList.contains('user') ? 'user' : 'bot';
         const text = row.querySelector('.bubble')?.dataset.raw || '';
-        history.push({ role, content: text });
+                const bubble = row.querySelector('.bubble');
+        history.push({
+          role,
+          content: text,
+          sources: role === 'bot' ? (bubble?._sources || []) : [],
+          latency: role === 'bot' ? (bubble?._latency || null) : null,
+        });
       });
       saveSession(state.currentId, history, msg.slice(0, 55));
 
@@ -974,7 +980,8 @@
     let sourcesHtml = '';
     if (sources && sources.length > 0) {
       const items = sources.map((s, i) =>
-        `<div class="src-item">[${escapeHtml(s.reference_number)}] ${escapeHtml(s.claim || s.chunk_id || '')}</div>`
+        `<div class="src-item">[${escapeHtml(s.reference_number)}] ${escapeHtml(s.citation_header || s.claim || s.chunk_id || '')}</div>` +
+        (s.breadcrumb ? `<div class="src-item">↳ ${escapeHtml(s.breadcrumb)}</div>` : '')
       ).join('');
       sourcesHtml = `
         <div class="sources-block">
@@ -999,6 +1006,11 @@
       </div>
     `;
 
+    const bubble = row.querySelector('.bubble');
+    if (bubble) {
+      bubble._sources = sources || [];
+      bubble._latency = latency || null;
+    }
     messagesEl.appendChild(row);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }

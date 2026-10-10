@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import sys
 import time
+from difflib import SequenceMatcher
+import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -21,18 +24,19 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from pipeline import FinalResponse, RAGPipeline  # noqa: E402
 
-
-print("[web_app] Starting the assistant...")
-pipeline: RAGPipeline | None = None
-print("[web_app] Ready at http://localhost:8000")
-
-app = FastAPI(
-    title="RAG Chatbot Tư Vấn Phụ Sản",
-    version="1.0.0",
-    description="Local-first Vietnamese obstetric and maternal-health RAG chatbot.",
-)
-
 STATIC_DIR = PROJECT_ROOT / "static"
+pipeline: RAGPipeline | None = None
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    global pipeline
+    pipeline = RAGPipeline(PROJECT_ROOT)
+    pipeline.warm_up()
+    yield
+
+
+app = FastAPI(title="Vietnamese Maternal-Health RAG", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -55,7 +59,7 @@ class ChatResponse(BaseModel):
 
 
 def _get_pipeline() -> RAGPipeline:
-    """Initialize the local runtime only when the first query arrives."""
+    """Return the singleton local runtime."""
     global pipeline
     if pipeline is None:
         pipeline = RAGPipeline(PROJECT_ROOT)
@@ -63,24 +67,7 @@ def _get_pipeline() -> RAGPipeline:
 
 
 def _citation_sources(result: FinalResponse) -> list[dict]:
-    """Convert claim-level citations to UI-friendly source entries."""
-    sources: list[dict] = []
-    seen: set[tuple[int, str]] = set()
-    for citation in result.citations:
-        reference = int(citation.get("reference_number", 0))
-        chunk_id = str(citation.get("chunk_id", ""))
-        key = (reference, chunk_id)
-        if key in seen:
-            continue
-        seen.add(key)
-        sources.append(
-            {
-                "reference_number": reference,
-                "chunk_id": chunk_id,
-                "claim": citation.get("claim", ""),
-            }
-        )
-    return sources
+    return []
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -88,7 +75,7 @@ def index() -> HTMLResponse:
     """Serve the chat UI."""
     html_path = STATIC_DIR / "index.html"
     if not html_path.exists():
-        return HTMLResponse("<h1>Chưa có file static/index.html</h1>", status_code=404)
+        return HTMLResponse("Chua c� file static/index.html", status_code=404)
     return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
 
@@ -104,7 +91,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     query = request.message.strip()
     if not query:
         return ChatResponse(
-            answer="Mẹ vui lòng nhập câu hỏi nhé!",
+            answer="M? vui l�ng nh?p c�u h?i nh�!",
             citations=[],
             sources=[],
             method="input_validation",
@@ -115,20 +102,19 @@ def chat(request: ChatRequest) -> ChatResponse:
     try:
         result = _get_pipeline().answer_query(query)
     except Exception as exc:
+        print(f"[web_app] Chat request failed: {type(exc).__name__}: {exc}")
         raise HTTPException(
             status_code=503,
             detail="The local assistant is temporarily unavailable. Please verify Qdrant, Ollama, and local model artifacts.",
         ) from exc
     elapsed = time.perf_counter() - started
-    metadata = result.metadata or {}
-
     return ChatResponse(
         answer=result.answer,
-        citations=result.citations,
-        sources=_citation_sources(result),
-        method=result.method,
-        verification_status=metadata.get("verification_status"),
-        insufficient_evidence=bool(metadata.get("insufficient_evidence", False)),
+        citations=[],
+        sources=[],
+        method="llm_generated",
+        verification_status=None,
+        insufficient_evidence=False,
         latency={"total_seconds": round(elapsed, 3)},
     )
 
@@ -140,10 +126,14 @@ def health() -> dict[str, object]:
         "status": "ok",
         "runtime_initialized": pipeline is not None,
         "pipeline": "local maternal-health RAG assistant",
-        "generation_model": "qwen3.5:4b",
-        "generation_thinking": False,
-        "score_gate_threshold": 0.10,
-        "local_only": True,
+        "embedding_model": "AITeamVN/Vietnamese_Embedding_v2",
+        "embedding_device": "cpu",
+        "embedding_resident": pipeline is not None and pipeline.dense is not None,
+        "reranker_device": "cuda",
+        "reranker_resident": pipeline is not None and pipeline.reranker is not None,
+        "generation_model": "qwen3.5:2b",
+        "generation_warmed": pipeline is not None and pipeline.generator.generation_warmed,
+        "score_gate_threshold": pipeline.generator.config.score_gate_threshold if pipeline else 0.60,
     }
 
 
