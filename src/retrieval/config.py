@@ -21,8 +21,8 @@ class RetrievalConfig:
         )
     )
     bm25_path: Path = Path("data/vector_db/bm25_index.pkl")
-    dense_top_k: int = 15
-    sparse_top_k: int = 15
+    dense_top_k: int = 30
+    sparse_top_k: int = 30
     # Frozen after DEV retrieval tuning:
     # Dense/BM25 top-30 each -> RRF candidate pool top-30 -> reranker -> final top-5.
     candidate_pool_top_k: int = 30
