@@ -1,0 +1,237 @@
+{
+  "experiment": {
+    "cleaned_dir": "D:\\rag-phu-san-chatbot\\data\\cleaned",
+    "files": [
+      "qd_1139_2026_cham_soc_truoc_thai_truoc_sinh_clean.md",
+      "qd_1154_2024_tang_huyet_ap_tien_san_giat_clean.md",
+      "qd_1359_2026_khhgd_pha_thai_an_toan_clean.md",
+      "qd_1470_2024_dai_thao_duong_thai_ky_clean.md",
+      "qd_2323_2025_cham_soc_dieu_tri_so_sinh_clean.md",
+      "qd_4128_2016_dich_vu_cssk_sinh_san_clean.md",
+      "qd_776_2017_dinh_duong_thai_ky_clean.md"
+    ],
+    "tokenizer_model": "Qwen/Qwen3-Embedding-0.6B",
+    "max_chunk_tokens": 512,
+    "note": "Đây là structural chunking evaluation. Retrieval metrics như Recall@k/MRR/nDCG cần chạy ở bước retrieval với cùng query set."
+  },
+  "methods": {
+    "hierarchical": {
+      "chunker": "hierarchical",
+      "total_chunks": 1182,
+      "table_chunks": 122,
+      "table_split_parts": 46,
+      "was_split_chunks": 223,
+      "overflow_split_chunks": 0,
+      "actual_too_long_chunks": 1,
+      "semantic_fallback_chunks": 0,
+      "duplicate_chunk_ids": 0,
+      "leading_punctuation_chunks": 0,
+      "nested_list_lines_preserved": 787,
+      "tokens": {
+        "avg": 273.37,
+        "median": 254.0,
+        "p95": 486.0,
+        "min": 70,
+        "max": 695
+      },
+      "chars": {
+        "avg": 734.07,
+        "median": 666.5,
+        "p95": 1418.0,
+        "min": 173,
+        "max": 2009
+      },
+      "per_file": {
+        "qd_1139_2026_cham_soc_truoc_thai_truoc_sinh_clean.md": {
+          "chunker": "hierarchical",
+          "total_chunks": 102,
+          "table_chunks": 2,
+          "table_split_parts": 0,
+          "was_split_chunks": 5,
+          "overflow_split_chunks": 0,
+          "actual_too_long_chunks": 0,
+          "semantic_fallback_chunks": 0,
+          "duplicate_chunk_ids": 0,
+          "leading_punctuation_chunks": 0,
+          "nested_list_lines_preserved": 57,
+          "tokens": {
+            "avg": 233.14,
+            "median": 209.5,
+            "p95": 429.4,
+            "min": 92,
+            "max": 509
+          },
+          "chars": {
+            "avg": 629.74,
+            "median": 528.5,
+            "p95": 1284.0,
+            "min": 184,
+            "max": 1717
+          }
+        },
+        "qd_1154_2024_tang_huyet_ap_tien_san_giat_clean.md": {
+          "chunker": "hierarchical",
+          "total_chunks": 35,
+          "table_chunks": 4,
+          "table_split_parts": 0,
+          "was_split_chunks": 15,
+          "overflow_split_chunks": 0,
+          "actual_too_long_chunks": 0,
+          "semantic_fallback_chunks": 0,
+          "duplicate_chunk_ids": 0,
+          "leading_punctuation_chunks": 0,
+          "nested_list_lines_preserved": 71,
+          "tokens": {
+            "avg": 325,
+            "median": 305,
+            "p95": 489.3,
+            "min": 158,
+            "max": 495
+          },
+          "chars": {
+            "avg": 842.83,
+            "median": 814,
+            "p95": 1423.4,
+            "min": 273,
+            "max": 1502
+          }
+        },
+        "qd_1359_2026_khhgd_pha_thai_an_toan_clean.md": {
+          "chunker": "hierarchical",
+          "total_chunks": 213,
+          "table_chunks": 2,
+          "table_split_parts": 0,
+          "was_split_chunks": 21,
+          "overflow_split_chunks": 0,
+          "actual_too_long_chunks": 0,
+          "semantic_fallback_chunks": 0,
+          "duplicate_chunk_ids": 0,
+          "leading_punctuation_chunks": 0,
+          "nested_list_lines_preserved": 184,
+          "tokens": {
+            "avg": 252.29,
+            "median": 225,
+            "p95": 470.4,
+            "min": 101,
+            "max": 512
+          },
+          "chars": {
+            "avg": 699.08,
+            "median": 605,
+            "p95": 1420.0,
+            "min": 205,
+            "max": 1735
+          }
+        },
+        "qd_1470_2024_dai_thao_duong_thai_ky_clean.md": {
+          "chunker": "hierarchical",
+          "total_chunks": 62,
+          "table_chunks": 11,
+          "table_split_parts": 0,
+          "was_split_chunks": 37,
+          "overflow_split_chunks": 0,
+          "actual_too_long_chunks": 0,
+          "semantic_fallback_chunks": 0,
+          "duplicate_chunk_ids": 0,
+          "leading_punctuation_chunks": 0,
+          "nested_list_lines_preserved": 52,
+          "tokens": {
+            "avg": 282.66,
+            "median": 269.0,
+            "p95": 493.5,
+            "min": 95,
+            "max": 509
+          },
+          "chars": {
+            "avg": 774.77,
+            "median": 668.0,
+            "p95": 1470.2,
+            "min": 191,
+            "max": 1688
+          }
+        },
+        "qd_2323_2025_cham_soc_dieu_tri_so_sinh_clean.md": {
+          "chunker": "hierarchical",
+          "total_chunks": 98,
+          "table_chunks": 3,
+          "table_split_parts": 0,
+          "was_split_chunks": 9,
+          "overflow_split_chunks": 0,
+          "actual_too_long_chunks": 0,
+          "semantic_fallback_chunks": 0,
+          "duplicate_chunk_ids": 0,
+          "leading_punctuation_chunks": 0,
+          "nested_list_lines_preserved": 61,
+          "tokens": {
+            "avg": 240.26,
+            "median": 218.0,
+            "p95": 420.1,
+            "min": 110,
+            "max": 501
+          },
+          "chars": {
+            "avg": 618.79,
+            "median": 549.0,
+            "p95": 1234.5,
+            "min": 202,
+            "max": 1507
+          }
+        },
+        "qd_4128_2016_dich_vu_cssk_sinh_san_clean.md": {
+          "chunker": "hierarchical",
+          "total_chunks": 475,
+          "table_chunks": 25,
+          "table_split_parts": 9,
+          "was_split_chunks": 68,
+          "overflow_split_chunks": 0,
+          "actual_too_long_chunks": 1,
+          "semantic_fallback_chunks": 0,
+          "duplicate_chunk_ids": 0,
+          "leading_punctuation_chunks": 0,
+          "nested_list_lines_preserved": 311,
+          "tokens": {
+            "avg": 273.28,
+            "median": 259,
+            "p95": 475.3,
+            "min": 100,
+            "max": 695
+          },
+          "chars": {
+            "avg": 734.88,
+            "median": 679,
+            "p95": 1411.3,
+            "min": 176,
+            "max": 2009
+          }
+        },
+        "qd_776_2017_dinh_duong_thai_ky_clean.md": {
+          "chunker": "hierarchical",
+          "total_chunks": 197,
+          "table_chunks": 75,
+          "table_split_parts": 37,
+          "was_split_chunks": 68,
+          "overflow_split_chunks": 0,
+          "actual_too_long_chunks": 0,
+          "semantic_fallback_chunks": 0,
+          "duplicate_chunk_ids": 0,
+          "leading_punctuation_chunks": 0,
+          "nested_list_lines_preserved": 51,
+          "tokens": {
+            "avg": 321.61,
+            "median": 304,
+            "p95": 498.6,
+            "min": 70,
+            "max": 511
+          },
+          "chars": {
+            "avg": 849.19,
+            "median": 836,
+            "p95": 1486.2,
+            "min": 173,
+            "max": 1637
+          }
+        }
+      }
+    }
+  }
+}
