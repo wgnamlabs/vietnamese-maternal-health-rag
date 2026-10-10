@@ -20,16 +20,19 @@ from retrieval.sparse_retriever import SparseRetriever
 
 @dataclass(frozen=True)
 class FinalResponse:
-    """User-facing answer (Retrieval placeholder format)."""
+    """User-facing answer."""
 
     answer: str
-    refused: bool = False
-    top_score: float = 0.0
-    chunks: list = None
+    refused: bool
+    top_score: float
+    chunks: list[str]
 
 
 class RAGPipeline:
-    """Run basic retrieval and reranking (Generation v2 planned)."""
+    """Run pure retrieval and reranking (Generation v2 is planned).
+    
+    Note: The RLock makes retrieval and reranking strictly sequential.
+    """
 
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
@@ -72,13 +75,13 @@ class RAGPipeline:
             self._vram_log("before_embedding_warmup")
             self.dense.embedder.encode(["chăm sóc thai kỳ"], is_query=True)
             self._vram_log("after_embedding_warmup")
-            from retrieval.base import RetrievedChunk
-            dummy_chunks = [
-                RetrievedChunk("dummy_1", "warmup text context 1", score=1.0, source_type="dense", metadata={}),
-                RetrievedChunk("dummy_2", "warmup text context 2", score=1.0, source_type="dense", metadata={})
-            ]
             self._ensure_reranker()
-            self.reranker.rerank("warmup", dummy_chunks, top_k=2)
+            
+            # Dummy rerank để làm nóng CUDA
+            from retrieval.base import RetrievedChunk
+            dummy_candidates = [RetrievedChunk(chunk_id="dummy", text="dummy text", score=1.0, source_type="dense")]
+            self.reranker.rerank("dummy query", dummy_candidates, 1)
+            
             self._vram_log("after_reranker_warmup")
 
     def _ensure_reranker(self) -> Reranker:
@@ -95,10 +98,7 @@ class RAGPipeline:
 
 
     def answer_query(self, raw_query: str) -> FinalResponse:
-        """Answer one query through local hybrid retrieval.
-        Note: The _runtime_lock ensures that retrieval and reranking are executed
-        strictly sequentially to prevent concurrent CUDA memory spikes on consumer GPUs.
-        """
+        """Answer one query through local hybrid retrieval and generation."""
         total_start = time.perf_counter()
         if not raw_query or not raw_query.strip():
             raise ValueError("query không được rỗng")
@@ -126,16 +126,16 @@ class RAGPipeline:
         refused = True
         top_score = 0.0
         chunks = []
-        
+
         if ranked:
             top_score = ranked[0].score
-            chunks = [r.chunk_id for r in ranked]
+            chunks = [c.chunk_id for c in ranked]
             if top_score < self.retrieval_config.ood_threshold:
-                answer_text = "Không có đủ thông tin trong tài liệu hiện có để trả lời câu hỏi này (Câu hỏi nằm ngoài phạm vi)."
                 refused = True
+                answer_text = "Không có đủ thông tin trong tài liệu hiện có để trả lời câu hỏi này."
             else:
-                answer_text = "Đã tìm thấy ngữ cảnh hợp lệ, chờ sinh câu trả lời."
                 refused = False
+                answer_text = f"[Placeholder cho Generation v2] Đã tìm thấy {len(ranked)} tài liệu phù hợp."
 
         return FinalResponse(
             answer=answer_text,
