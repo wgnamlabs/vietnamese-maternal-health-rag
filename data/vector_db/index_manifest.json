@@ -60,5 +60,16 @@
   "known_limitations": [
     "EVAL_QD_1139_009: bullet nằm trong chunk gộp nhiều chủ đề",
     "EVAL_QD_776_002: reranker xếp thấp chunk bảng toàn số liệu"
-  ]
+  ],
+  "git_commit": "42ad87d8544a318feb692f4533eed2336223df5e",
+  "requirements": "requirements.frozen.txt",
+  "hf_revisions": {
+    "Qwen/Qwen3-Embedding-0.6B": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    "BAAI/bge-reranker-v2-m3": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+  },
+  "hashes": {
+    "hierarchical.json": "aaa4045716016aa678ab55344eab18a1ddca2ad4ca2692d1d5c9eb247f504406",
+    "bm25_index.pkl": "2e4352b64f4e45d49139ed1dd834978941796e35d7ba9acf49ff2de1a027329c",
+    "eval_questions.json": "950d01ad47465bca0930ecc953082246e439eeea7d6a17232133323a12888251"
+  }
 }
