@@ -2,5 +2,6 @@
 
 from .context_builder import build_context
 from .prompt_builder import PromptPayload, build_prompt
+from .schema import Citation, GenerationOutput
 
-__all__ = ["PromptPayload", "build_context", "build_prompt"]
+__all__ = ["Citation", "GenerationOutput", "PromptPayload", "build_context", "build_prompt"]

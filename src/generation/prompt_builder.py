@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from retrieval.base import RetrievedChunk
 
-from .context_builder import build_context, build_reference_sources
+from .context_builder import build_context
 from .system_prompt import SYSTEM_PROMPT
 
 
@@ -18,27 +18,22 @@ class PromptPayload:
     user_message: str
     reference_map: dict[int, str]
     chunks: list[RetrievedChunk] = field(default_factory=list)
-    reference_sources: dict[int, dict[str, str]] = field(default_factory=dict)
 
 
 def build_prompt(
     query: str,
+    rewritten_query: str,
     chunks: list[RetrievedChunk],
 ) -> PromptPayload:
-    """Build the basic RAG prompt from the user's original question and context."""
+    """Build prompt using original question while retaining rewrite for audit."""
     context, reference_map = build_context(chunks)
-    reference_sources = build_reference_sources(chunks)
     user_message = (
-        "CÂU HỎI CỦA NGƯỜI DÙNG:\n"
+        "CÂU HỎI GỐC CỦA NGƯỜI DÙNG:\n"
         f"{query}\n\n"
+        "QUERY ĐÃ CHUẨN HÓA CHỈ DÙNG CHO RETRIEVAL:\n"
+        f"{rewritten_query}\n\n"
         "NGỮ CẢNH:\n"
         f"{context}\n\n"
-        "Hãy trả lời trực tiếp câu hỏi bằng văn bản tiếng Việt dựa trên NGỮ CẢNH."
+        "Hãy trả về duy nhất JSON hợp lệ theo schema đã nêu trong system prompt."
     )
-    return PromptPayload(
-        SYSTEM_PROMPT,
-        user_message,
-        reference_map,
-        list(chunks),
-        reference_sources,
-    )
+    return PromptPayload(SYSTEM_PROMPT, user_message, reference_map, list(chunks))
