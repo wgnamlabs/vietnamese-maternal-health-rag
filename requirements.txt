@@ -1,5 +1,5 @@
 # ============================================================
-# Core — PDF Parsing
+# Core - PDF Parsing
 # ============================================================
 docling>=2.117.0
 
@@ -14,10 +14,10 @@ langchain-core>=1.5.3
 # Embedding
 # ============================================================
 sentence-transformers>=5.6.1
-torch>=2.13.0          # GPU: cài bản cu130 từ pytorch.org, không qua pip thường
+torch>=2.13.0
 
 # ============================================================
-# Vector Store — Qdrant local mode (không cần Docker)
+# Vector Store - Qdrant local mode
 # ============================================================
 qdrant-client>=1.14.3
 
@@ -25,29 +25,24 @@ qdrant-client>=1.14.3
 # BM25 + Vietnamese Tokenizer
 # ============================================================
 rank-bm25>=0.2.2
-underthesea>=6.8.4     # Word segmentation tiếng Việt (cần Visual C++ trên Windows)
-pyvi>=0.1.1            # Fallback tokenizer nếu underthesea lỗi
+underthesea>=6.8.4
+pyvi>=0.1.1
 
 # ============================================================
-# Reranker (cross-encoder, dùng sentence-transformers CrossEncoder)
+# Reranker
 # ============================================================
-# BAAI/bge-reranker-v2-m3 dùng sentence-transformers — đã có ở trên
+# BAAI/bge-reranker-v2-m3 uses sentence-transformers
 
 # ============================================================
 # LLM via Ollama HTTP API
 # ============================================================
-requests>=2.32.0       # HTTP client cho Ollama REST API
-
-# ============================================================
-# RAGAS Evaluation (Removed)
-# ============================================================
-# Generation v2 có thể sẽ dùng công cụ đánh giá khác, hiện tại RAGAS không được sử dụng.
+requests>=2.32.0
 
 # ============================================================
 # Web UI (FastAPI)
 # ============================================================
-fastapi>=0.141.1          # Web framework cho giao diện chat (web_app.py)
-uvicorn>=0.52.1           # ASGI server chạy FastAPI
+fastapi>=0.141.1
+uvicorn>=0.52.1
 
 # ============================================================
 # Validation / Data
