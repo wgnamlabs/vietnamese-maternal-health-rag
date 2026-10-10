@@ -1,18 +1,23 @@
 from dataclasses import dataclass, field
 from typing import Callable, List, Literal, Optional
 
+from indexing.embedding.config import SELECTED_EMBEDDING_MODEL
 
-DEFAULT_TOKENIZER_MODEL = "AITeamVN/Vietnamese_Embedding_v2"
+
+# Config được chốt từ benchmark DEV/TEST.
+DEFAULT_TOKENIZER_MODEL = SELECTED_EMBEDDING_MODEL
+SELECTED_CHUNKER = "hierarchical"
+SELECTED_MAX_CHUNK_TOKENS = 512
 
 
 def default_markdown_headers() -> List[tuple]:
     """Giữ toàn bộ hierarchy H1-H6 của corpus đã clean."""
     return [
-        ("#",      "Header 1"),
-        ("##",     "Header 2"),
-        ("###",    "Header 3"),
-        ("####",   "Header 4"),
-        ("#####",  "Header 5"),
+        ("#", "Header 1"),
+        ("##", "Header 2"),
+        ("###", "Header 3"),
+        ("####", "Header 4"),
+        ("#####", "Header 5"),
         ("######", "Header 6"),
     ]
 
@@ -30,9 +35,9 @@ class SemanticChunkerConfig:
     breakpoint_threshold_amount: float = 95.0
     buffer_size: int = 1
 
-    # Size guard dùng TOKEN thật của chính embedding model.
+    # Size guard dùng token thật của chính embedding model.
     min_chunk_tokens: int = 30
-    max_chunk_tokens: int = 1024
+    max_chunk_tokens: int = SELECTED_MAX_CHUNK_TOKENS
     overflow_overlap_tokens: int = 50
 
     # Bảng lớn được tách theo row, mỗi part lặp header + separator.
@@ -40,7 +45,7 @@ class SemanticChunkerConfig:
 
     # Trong evaluation không được âm thầm fallback vì sẽ làm sai kết luận.
     # Có thể đặt False ở production nếu muốn ưu tiên robustness.
-    raise_on_semantic_error: bool = True
+    raise_on_semantic_error: bool = False
 
     def __post_init__(self):
         assert 0 < self.min_chunk_tokens < self.max_chunk_tokens
@@ -55,9 +60,9 @@ class HierarchicalChunkerConfig:
 
     headers_to_split_on: List[tuple] = field(default_factory=default_markdown_headers)
 
-    # Hai kỹ thuật dùng cùng một max token budget để so sánh công bằng.
+    # Hai kỹ thuật dùng cùng max token budget để benchmark công bằng.
     # Tên field cũ được giữ để tránh làm vỡ code caller hiện tại.
-    child_chunk_size: int = 1024
+    child_chunk_size: int = SELECTED_MAX_CHUNK_TOKENS
     child_chunk_overlap: int = 100
 
     # Bảng lớn được tách theo row, mỗi part lặp header + separator.

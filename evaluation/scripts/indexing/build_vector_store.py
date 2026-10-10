@@ -1,36 +1,14 @@
-"""Build dense Qdrant index + BM25 index từ chunk cache đã benchmark.
+"""Build the frozen Qdrant dense index and BM25 index from benchmark chunks.
 
-Cấu hình mặc định được FREEZE từ kết quả DEV/TEST:
+Frozen DEV selection, confirmed on TEST:
     Chunker  : hierarchical
-    Embedder : Qwen/Qwen3-Embedding-4B
+    Embedder : Qwen/Qwen3-Embedding-0.6B
     Distance : cosine
-    Top-K    : 15 candidate chunks
+    Dim      : 1024
+    Dense K  : 15 candidate chunks
 
-Benchmark TEST của cấu hình này:
-    Evidence Recall@10   = 0.9786
-    Evidence Complete@10 = 0.9786
-    nDCG@10              = 0.8570
-    MRR                  = 0.8434
-    Evidence Recall@15   = 1.0000
-
-Windows / Docker:
-    docker run -d --name qdrant \
-        -p 6333:6333 -p 6334:6334 \
-        -v D:/rag-phu-san-chatbot/data/vector_db/qdrant:/qdrant/storage \
-        qdrant/qdrant
-
-    Dashboard:
-        http://localhost:6333/dashboard
-
-Build sạch sau khi đổi từ index cũ:
-    python evaluation/build_vector_store.py --recreate
-
-Kaggle:
-    python evaluation/build_vector_store.py --qdrant-mode local --recreate
-
-`auto` mode:
-    - Kaggle/Colab -> local-file Qdrant
-    - môi trường khác -> Qdrant server/Docker
+The script resolves a model-specific chunk-cache directory so it cannot build
+this selected index from chunks belonging to another benchmark candidate.
 """
 
 from __future__ import annotations
@@ -58,25 +36,29 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from indexing.chunking.base import Chunk
+from indexing.chunking.config import SELECTED_CHUNKER
 from indexing.embedding import (
     MODELS_TO_COMPARE,
     EmbedderConfig,
+    SELECTED_EMBEDDING_MODEL,
     SentenceTransformerEmbedder,
 )
 from indexing.vector_store import (
     QdrantStoreConfig,
     QdrantVectorStore,
+    SELECTED_COLLECTION_NAME,
+    SELECTED_VECTOR_SIZE,
 )
 
 
 # ---------------------------------------------------------------------
-# Frozen selection from DEV
+# Frozen selection from DEV, confirmed on TEST
 # ---------------------------------------------------------------------
 
-DEFAULT_CHUNKER = "hierarchical"
-DEFAULT_EMB_MODEL = "Qwen/Qwen3-Embedding-4B"
-DEFAULT_EXPECTED_DIM = 2560
-DEFAULT_COLLECTION = "phu_san_chunks"
+DEFAULT_CHUNKER = SELECTED_CHUNKER
+DEFAULT_EMB_MODEL = SELECTED_EMBEDDING_MODEL
+DEFAULT_EXPECTED_DIM = SELECTED_VECTOR_SIZE
+DEFAULT_COLLECTION = SELECTED_COLLECTION_NAME
 DEFAULT_DISTANCE = "cosine"
 DEFAULT_TOP_K = 15
 
@@ -92,6 +74,19 @@ def _resolve_qdrant_mode(mode: str) -> str:
     if mode != "auto":
         return mode
     return "local" if _is_notebook_cloud() else "server"
+
+
+def _model_cache_dir_name(model_name: str) -> str:
+    """Resolve the dedicated benchmark chunk-cache directory for a model."""
+    known_directories = {
+        "BAAI/bge-m3": "bge_m3",
+        "Qwen/Qwen3-Embedding-0.6B": "qwen3_embedding_0_6b",
+        "AITeamVN/Vietnamese_Embedding_v2": "vietnamese_embedding_v2",
+    }
+    return known_directories.get(
+        model_name,
+        model_name.replace("/", "_").replace("-", "_").lower(),
+    )
 
 
 def _selected_embedder_config(
@@ -282,13 +277,15 @@ def build_stores(
         )
 
     # ---------------------------------------------------------------
-    # Step 1: exact final chunk cache
+    # Step 1: exact model-specific final chunk cache
     # ---------------------------------------------------------------
     chunk_file = (
         base_path
         / "evaluation"
         / "results"
-        / "phase1_indexing" / "chunks_cache"
+        / "indexing"
+        / _model_cache_dir_name(emb_model)
+        / "chunks_cache"
         / f"{chunker_name}.json"
     )
 
@@ -464,12 +461,12 @@ def build_stores(
             "tokenizer": tokenizer_name,
         },
         "benchmark_test": {
-            "evidence_recall_at_10": 0.9785714285714285,
-            "evidence_complete_at_10": 0.9785714285714285,
-            "ndcg_at_10": 0.8570159062555588,
-            "mrr": 0.8433704390847248,
-            "ood_auroc": 1.0,
-            "evidence_recall_at_15": 1.0,
+            "evidence_recall_at_10": 0.930,
+            "evidence_complete_at_10": 0.930,
+            "ndcg_at_10": 0.734,
+            "mrr": 0.706,
+            "ood_auroc": 0.995,
+            "evidence_recall_at_15": 0.972,
         },
     }
 
@@ -509,8 +506,8 @@ def build_stores(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build final Qdrant + BM25 index. "
-            "Default = hierarchical + Qwen3-Embedding-4B."
+            "Build frozen Qdrant + BM25 index. "
+            "Default = hierarchical + Qwen/Qwen3-Embedding-0.6B."
         )
     )
 
@@ -530,7 +527,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_EXPECTED_DIM,
         help=(
             "Chỉ dùng để validate output dimension. "
-            "Qwen3-Embedding-4B mặc định = 2560."
+            "Selected Qwen3-Embedding-0.6B dimension = 1024."
         ),
     )
     parser.add_argument(

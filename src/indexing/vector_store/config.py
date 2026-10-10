@@ -2,39 +2,32 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+# Must match the collection used by the final build command.
+SELECTED_COLLECTION_NAME = "chunks"
+SELECTED_VECTOR_SIZE = 1024
+
+
 @dataclass
 class QdrantStoreConfig:
-    """Cấu hình Qdrant cho pipeline đã chốt.
+    """Qdrant configuration for the selected production retrieval index.
 
-    Cấu hình benchmark chính thức:
+    Frozen benchmark selection:
         Chunker  : hierarchical
-        Embedder : Qwen/Qwen3-Embedding-4B
+        Embedder : Qwen/Qwen3-Embedding-0.6B
         Distance : cosine
-        Dim      : 2560 (output mặc định của Qwen3-Embedding-4B)
-
-    Qdrant server/Docker:
-        REST API : http://localhost:6333
-        Dashboard: http://localhost:6333/dashboard
-        gRPC     : localhost:6334
-
-    Có thể dùng Qdrant local-file thay cho Docker bằng `path=...`.
-    `memory=True` chỉ phù hợp test nhanh vì dữ liệu mất khi process kết thúc.
+        Dim      : 1024
     """
 
-    collection_name: str = "phu_san_chunks"
+    collection_name: str = SELECTED_COLLECTION_NAME
     host: str = "localhost"
     port: int = 6333
-
-    # Qwen3-Embedding-4B default output dimension.
-    # build_vector_store.py vẫn lấy dimension thật từ embeddings.shape[1]
-    # và dùng giá trị đó để tạo collection, nên không phụ thuộc mù quáng vào số này.
-    vector_size: int = 2560
+    vector_size: int = SELECTED_VECTOR_SIZE
     distance: str = "cosine"
 
-    # Nếu path != None -> Qdrant embedded/local-file.
+    # path != None uses embedded/local-file Qdrant.
     path: Optional[str] = None
 
-    # Nếu True -> Qdrant in-memory.
+    # memory=True is only suitable for short-lived tests.
     memory: bool = False
 
     def __post_init__(self) -> None:

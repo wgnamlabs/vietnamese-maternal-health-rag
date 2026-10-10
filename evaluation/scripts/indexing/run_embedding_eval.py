@@ -17,9 +17,11 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 
 # Project root/src
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+RETRIEVAL_SCRIPT_DIR = PROJECT_ROOT / "evaluation" / "scripts" / "retrieval"
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(RETRIEVAL_SCRIPT_DIR))
 
-from indexing.embedding import MODELS_TO_COMPARE, SentenceTransformerEmbedder
+from indexing.embedding import EmbedderConfig, MODELS_TO_COMPARE, SentenceTransformerEmbedder
 from metrics import (
     DEFAULT_EVIDENCE_MATCH,
     build_gold_relevance,
@@ -302,14 +304,41 @@ def write_csv(path: Path, rows: Sequence[Dict[str, Any]], fieldnames: Sequence[s
             writer.writerow(row)
 
 
+def resolve_model_configs(model_names: Sequence[str] | None) -> list[EmbedderConfig]:
+    """Return requested benchmark models in shortlist order."""
+    available = {config.model_name: config for config in MODELS_TO_COMPARE}
+    if model_names is None:
+        return list(MODELS_TO_COMPARE)
+    unknown = [name for name in model_names if name not in available]
+    if unknown:
+        raise ValueError(f"Model không có trong MODELS_TO_COMPARE: {unknown}. Các model hợp lệ: {list(available)}")
+    requested = set(model_names)
+    return [config for config in MODELS_TO_COMPARE if config.model_name in requested]
+
+
+def rank_experiments(comparisons: Sequence[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    """Rank configs by complete evidence, recall, ranking quality, then OOD."""
+    def metric(row: Dict[str, Any], name: str) -> float:
+        value = row.get(name, float("nan"))
+        return float(value) if value is not None and not math.isnan(float(value)) else -1.0
+    ordered = sorted(comparisons, key=lambda row: (-metric(row, f"evidence_complete@{PRIMARY_K}"), -metric(row, f"recall@{PRIMARY_K}"), -metric(row, f"ndcg@{PRIMARY_K}"), -metric(row, "mrr"), -metric(row, "ood_auroc"), str(row["chunker"]), str(row["embedding_model"])))
+    return [{"rank": index, **row} for index, row in enumerate(ordered, start=1)]
+
+
 def run_evaluation(
     chunks_dir: Path,
     questions_path: Path,
     output_dir: Path,
     eval_split: str,
+    model_names: Sequence[str] | None = None,
+    chunker_names: Sequence[str] | None = None,
 ) -> None:
     qa_data = load_eval_questions(questions_path, eval_split)
+    model_configs = resolve_model_configs(model_names)
     chunks_by_chunker = load_chunks(chunks_dir)
+
+    if chunker_names:
+        chunks_by_chunker = {k: v for k, v in chunks_by_chunker.items() if k in chunker_names}
 
     in_domain = [x for x in qa_data if x.get("answerable", False)]
     ood = [x for x in qa_data if not x.get("answerable", False)]
@@ -322,6 +351,7 @@ def run_evaluation(
     print(f"In-domain  : {len(in_domain)}")
     print(f"OOD        : {len(ood)}")
     print(f"Chunkers   : {', '.join(CHUNK_FILES)}")
+    print(f"Models     : {', '.join(config.model_name for config in model_configs)}")
     print(f"K values   : {K_VALUES}")
     print()
 
@@ -364,7 +394,7 @@ def run_evaluation(
         "experiments": [],
     }
 
-    for model_config in MODELS_TO_COMPARE:
+    for model_config in model_configs:
         embedder = SentenceTransformerEmbedder(model_config)
         embedder.load()
 
@@ -529,6 +559,40 @@ def run_evaluation(
     ]
     write_csv(comparison_path, comparison_rows, comparison_fields)
 
+    ranked_rows = rank_experiments(comparison_rows)
+    ranking_path = output_dir.parent / f"benchmark_ranking_{eval_split}.json"
+    ranking_payload = {
+        "eval_split": eval_split,
+        "selection_policy": [
+            f"evidence_complete@{PRIMARY_K}",
+            f"recall@{PRIMARY_K}",
+            f"ndcg@{PRIMARY_K}",
+            "mrr",
+            "ood_auroc",
+        ],
+        "ranking": ranked_rows,
+        "recommended_config": ranked_rows[0] if ranked_rows else None,
+    }
+    ranking_path.write_text(
+        json.dumps(ranking_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    if ranked_rows:
+        winner = ranked_rows[0]
+        print("\nRECOMMENDED CONFIG (DEV ranking)")
+        print(
+            f"  #{winner['rank']} {winner['chunker']} + "
+            f"{winner['embedding_model']}"
+        )
+        print(
+            f"  Complete@{PRIMARY_K}="
+            f"{winner[f'evidence_complete@{PRIMARY_K}']:.4f} | "
+            f"Recall@{PRIMARY_K}={winner[f'recall@{PRIMARY_K}']:.4f} | "
+            f"nDCG@{PRIMARY_K}={winner[f'ndcg@{PRIMARY_K}']:.4f} | "
+            f"MRR={winner['mrr']:.4f} | "
+            f"OOD AUROC={winner['ood_auroc']:.4f}"
+        )
+
     per_question_path = output_dir / f"per_question_results_{eval_split}.csv"
     per_question_fields = [
         "question_id",
@@ -593,6 +657,7 @@ def run_evaluation(
     print("DONE")
     print("=" * 72)
     print(f"Comparison       : {comparison_path}")
+    print(f"Ranking          : {ranking_path}")
     print(f"Per-question     : {per_question_path}")
     print(f"Per-group        : {per_group_path}")
     print(f"Summary JSON     : {summary_path}")
@@ -615,7 +680,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--chunks-dir",
         type=Path,
-        default=PROJECT_ROOT / "evaluation" / "results" / "phase1_indexing" / "chunks_cache",
+        default=PROJECT_ROOT / "evaluation" / "results" / "indexing" / "chunks_cache",
     )
     parser.add_argument(
         "--questions",
@@ -625,7 +690,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=PROJECT_ROOT / "evaluation" / "results" / "phase1_indexing" / "embedding_eval",
+        default=PROJECT_ROOT / "evaluation" / "results" / "indexing" / "embedding_eval",
+    )
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        choices=[config.model_name for config in MODELS_TO_COMPARE],
+        default=None,
+        help="Chỉ chạy các model được chỉ định; mặc định chạy toàn bộ shortlist.",
+    )
+    parser.add_argument(
+        "--chunkers",
+        nargs="+",
+        choices=list(CHUNK_FILES.keys()),
+        default=None,
+        help="Chỉ chạy các chunker được chỉ định; mặc định chạy tất cả.",
     )
     return parser.parse_args()
 
@@ -637,4 +716,6 @@ if __name__ == "__main__":
         questions_path=args.questions,
         output_dir=args.output_dir,
         eval_split=args.split,
+        model_names=args.models,
+        chunker_names=args.chunkers,
     )

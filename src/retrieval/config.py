@@ -6,37 +6,30 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from indexing.embedding import EmbedderConfig
+from indexing.embedding import EmbedderConfig, SELECTED_EMBEDDER_CONFIG
 from indexing.vector_store import QdrantStoreConfig
 
 
 @dataclass
 class RetrievalConfig:
-    """Cấu hình tập trung cho retrieval và reranking.
-
-    Các giá trị mặc định được lấy từ index manifest và protocol evaluation.
-    Có thể truyền các config indexing đã tồn tại để không tạo lại logic load.
-    """
+    """Central configuration for the selected retrieval baseline."""
 
     qdrant: QdrantStoreConfig = field(default_factory=QdrantStoreConfig)
     embedder: EmbedderConfig = field(
         default_factory=lambda: EmbedderConfig(
-            model_name="Qwen/Qwen3-Embedding-4B",
-            batch_size=16,
-            max_seq_length=2048,
-            device="cuda",
-            trust_remote_code=False,
-            auto_batch=True,
-            min_batch_size=2,
+            **SELECTED_EMBEDDER_CONFIG.__dict__
         )
     )
     bm25_path: Path = Path("data/vector_db/bm25_index.pkl")
     dense_top_k: int = 15
     sparse_top_k: int = 15
-    candidate_pool_top_k: int = 15
+    # Frozen after DEV/TEST retrieval tuning:
+    # Dense/BM25 top-15 -> RRF candidate pool top-50 -> reranker -> final top-5.
+    candidate_pool_top_k: int = 30
     final_top_k: int = 5
     rrf_k: int = 60
     reranker_model_name: str = "BAAI/bge-reranker-v2-m3"
+    # Embedding query encoding runs on CPU; reserve GPU for reranker + Ollama.
     reranker_device: str = "cuda"
     reranker_batch_size: int = 16
 
@@ -58,15 +51,9 @@ class RetrievalConfig:
 
 
 def default_retrieval_config(project_root: Optional[Path] = None) -> RetrievalConfig:
-    """Tạo config production mặc định từ project root."""
+    """Create production retrieval config rooted at the project directory."""
     root = project_root or Path.cwd()
     return RetrievalConfig(
-        qdrant=QdrantStoreConfig(
-            collection_name="phu_san_chunks",
-            host="localhost",
-            port=6333,
-            vector_size=2560,
-            distance="cosine",
-        ),
+        qdrant=QdrantStoreConfig(),
         bm25_path=root / "data" / "vector_db" / "bm25_index.pkl",
     )

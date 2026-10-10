@@ -264,6 +264,17 @@ class SemanticChunker(BaseChunker):
             if not section_text.strip():
                 continue
 
+            # The section heading is already retained in the breadcrumb. Passing
+            # it into LangChain's semantic splitter can collapse the heading and
+            # the first body sentence onto one line. That makes the body look
+            # like a heading-only chunk and it is later filtered out, losing
+            # short evidence spans. Split only the section body instead.
+            section_lines = section_text.splitlines()
+            if section_lines and section_lines[0].lstrip().startswith("#"):
+                section_text = "\n".join(section_lines[1:]).strip("\n")
+            if not section_text.strip():
+                continue
+
             content_budget = self._content_budget(breadcrumb)
             semantic_pieces, used_fallback = self._semantic_split(section_text)
             section_semantically_split = len(semantic_pieces) > 1

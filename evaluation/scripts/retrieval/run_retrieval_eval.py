@@ -8,7 +8,6 @@ Protocol:
 from __future__ import annotations
 
 import argparse
-import gc
 import json
 import math
 import sys
@@ -143,20 +142,30 @@ def aggregate(rows: Sequence[dict[str, Any]]) -> dict[str, float]:
 def group_questions(
     questions: Sequence[dict[str, Any]],
 ) -> dict[str, list[dict[str, Any]]]:
-    """Return the requested overall, hard/multi-evidence and table slices."""
+    """Return overall and diagnostic slices used for retrieval tuning."""
     answerable = [item for item in questions if item.get("answerable", False)]
-    groups = {"overall": answerable}
-    hard = [
-        item
-        for item in answerable
-        if item.get("benchmark_group") == "hard_multi"
-        or item.get("requires_multiple_evidence", False)
-    ]
-    table = [item for item in answerable if item.get("requires_table", False)]
-    if hard:
-        groups["hard_multi"] = hard
-    if table:
-        groups["table"] = table
+    groups: dict[str, list[dict[str, Any]]] = {"overall": answerable}
+    slices = {
+        "hard_multi": lambda item: (
+            item.get("benchmark_group") == "hard_multi"
+            or item.get("requires_multiple_evidence", False)
+        ),
+        "table": lambda item: item.get("requires_table", False),
+        "numeric": lambda item: item.get("question_type") == "numeric",
+        "patient_style": lambda item: item.get("question_style") == "patient_style",
+        "multi_evidence": lambda item: item.get("requires_multiple_evidence", False),
+    }
+    for name, predicate in slices.items():
+        selected = [item for item in answerable if predicate(item)]
+        if selected:
+            groups[name] = selected
+    source_tags = sorted(
+        {str(item.get("source_doc_tag")) for item in answerable if item.get("source_doc_tag")}
+    )
+    for source_tag in source_tags:
+        groups[f"document:{source_tag}"] = [
+            item for item in answerable if item.get("source_doc_tag") == source_tag
+        ]
     return groups
 
 
@@ -342,18 +351,6 @@ def run_evaluation(
         }
         per_query[pipeline_name] = all_rows
 
-    dense.embedder.unload()
-    del dense
-    del hybrid
-    gc.collect()
-    try:
-        import torch
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except ImportError:
-        pass
-
     reranker_load_start = time.perf_counter()
     reranker = Reranker(config)
     reranker_load_seconds = time.perf_counter() - reranker_load_start
@@ -453,12 +450,15 @@ def run_evaluation(
     display_pipelines = (
         PIPELINE_NAMES if selected_pipeline == "all" else ["hybrid_rerank"]
     )
-    groups = ["overall"]
     reference_groups = summary[display_pipelines[0]]["groups"]
-    if "hard_multi" in reference_groups:
-        groups.append("hard_multi")
-    if "table" in reference_groups:
-        groups.append("table")
+    preferred_groups = [
+        "overall", "hard_multi", "table", "numeric", "patient_style", "multi_evidence",
+    ]
+    groups = [name for name in preferred_groups if name in reference_groups]
+    groups.extend(
+        name for name in sorted(reference_groups)
+        if name.startswith("document:") and name not in groups
+    )
     print_markdown_table(summary, groups, display_pipelines)
     print("\n### OOD AUROC")
     print("| Pipeline | OOD AUROC |")
@@ -489,10 +489,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=PROJECT_ROOT / "evaluation" / "results" / "phase2_retrieval" / "retrieval_eval",
+        default=PROJECT_ROOT / "evaluation" / "results" / "retrieval" / "retrieval_eval",
     )
     parser.add_argument("--qdrant-host", default="localhost")
     parser.add_argument("--qdrant-port", type=int, default=6333)
+    parser.add_argument(
+        "--qdrant-collection",
+        default=None,
+        help="Tên collection Qdrant; dùng 'chunks' cho vector DB vừa build.",
+    )
     parser.add_argument(
         "--device",
         choices=["cuda", "cpu"],
@@ -520,6 +525,12 @@ def parse_args() -> argparse.Namespace:
             "pipeline đã chốt (Hybrid RRF Top-15 + rerank + Final K=5)."
         ),
     )
+    parser.add_argument("--dense-top-k", type=int, default=None)
+    parser.add_argument("--sparse-top-k", type=int, default=None)
+    parser.add_argument("--candidate-pool-top-k", type=int, default=None)
+    parser.add_argument("--rrf-k", type=int, default=None)
+    parser.add_argument("--final-top-k", type=int, default=None)
+    parser.add_argument("--reranker-batch-size", type=int, default=None)
     return parser.parse_args()
 
 
@@ -528,12 +539,42 @@ if __name__ == "__main__":
     config = default_retrieval_config(PROJECT_ROOT)
     config.qdrant.host = args.qdrant_host
     config.qdrant.port = args.qdrant_port
+    if args.qdrant_collection is not None:
+        config.qdrant.collection_name = args.qdrant_collection
     if args.device is not None:
         config.embedder.device = args.device
         config.reranker_device = args.device
     else:
         config.embedder.device = args.embedder_device
         config.reranker_device = args.reranker_device
+
+    overrides = {
+        "dense_top_k": args.dense_top_k,
+        "sparse_top_k": args.sparse_top_k,
+        "candidate_pool_top_k": args.candidate_pool_top_k,
+        "rrf_k": args.rrf_k,
+        "final_top_k": args.final_top_k,
+        "reranker_batch_size": args.reranker_batch_size,
+    }
+    for name, value in overrides.items():
+        if value is not None:
+            if value <= 0:
+                raise ValueError(f"{name} phải > 0")
+            setattr(config, name, value)
+    if config.final_top_k > config.candidate_pool_top_k:
+        raise ValueError("final_top_k không được lớn hơn candidate_pool_top_k")
+
+    print(
+        "[Config] dense_top_k={}; sparse_top_k={}; candidate_pool_top_k={}; "
+        "rrf_k={}; final_top_k={}; reranker_batch_size={}".format(
+            config.dense_top_k,
+            config.sparse_top_k,
+            config.candidate_pool_top_k,
+            config.rrf_k,
+            config.final_top_k,
+            config.reranker_batch_size,
+        )
+    )
     run_evaluation(
         questions_path=args.questions,
         output_dir=args.output_dir,

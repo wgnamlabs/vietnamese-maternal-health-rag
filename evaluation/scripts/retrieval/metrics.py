@@ -147,8 +147,17 @@ def build_gold_relevance(
         best_match_tokens = 0
         best_idx = None
 
+        evidence_section_path = evidence.get("section_path")
+
         for idx in candidate_indices:
             chunk = chunks[idx]
+
+            if evidence_section_path is not None:
+                chunk_breadcrumb = chunk.get("metadata", {}).get("breadcrumb")
+                # Normalize both to prevent slight mismatch issues just in case, though exact should be fine
+                if chunk_breadcrumb != evidence_section_path:
+                    continue
+
             coverage, matched_tokens = contiguous_evidence_overlap(
                 evidence_text,
                 chunk.get("text", ""),

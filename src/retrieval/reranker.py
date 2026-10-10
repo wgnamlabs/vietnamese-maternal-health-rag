@@ -35,12 +35,27 @@ class Reranker:
             device = "cpu"
         self.device = device
         load_start = time.perf_counter()
+        kwargs = {}
+        if device == "cuda":
+            kwargs["automodel_args"] = {"torch_dtype": torch.float16}
         self.model = model or CrossEncoder(
             config.reranker_model_name,
             device=device,
+            max_length=1024,
+            **kwargs
         )
         self.load_seconds = time.perf_counter() - load_start
-        _gpu_memory("after_load")
+        print(
+            f"[Reranker] device={self.device}; load={self.load_seconds:.3f}s; "
+            "resident=true"
+        )
+        if self.device == "cuda":
+            _gpu_memory("after_load")
+        else:
+            print(
+                "[Reranker] CPU mode; GPU memory shown by the embedder remains "
+                "allocated to the resident embedding model."
+            )
 
     def unload(self) -> None:
         """Release model, Python references and CUDA allocator memory."""
@@ -78,6 +93,10 @@ class Reranker:
         if self.device == "cuda":
             torch.cuda.synchronize()
         inference_seconds = time.perf_counter() - inference_start
+        print(
+            f"[Reranker] device={self.device}; candidates={len(chunks)}; "
+            f"inference={inference_seconds:.3f}s"
+        )
         scored = []
         for chunk, score in zip(chunks, scores):
             chunk.score = float(score)
