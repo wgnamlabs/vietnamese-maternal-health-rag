@@ -26,6 +26,7 @@ class FinalResponse:
     refused: bool
     top_score: float
     chunks: list[str]
+    contexts: list[dict]
 
 
 class RAGPipeline:
@@ -84,6 +85,13 @@ class RAGPipeline:
             
             self._vram_log("after_reranker_warmup")
 
+        # Warm-up LLM (Ollama)
+        from generation.generator import generate
+        try:
+            generate("Xin chào", [])
+        except Exception as e:
+            print(f"[Warn] Warm-up generation failed: {e}")
+
     def _ensure_reranker(self) -> Reranker:
         """Initialize the reranker once and keep it resident."""
         if self.reranker is None:
@@ -117,29 +125,35 @@ class RAGPipeline:
             ranked = self._ensure_reranker().rerank(raw_query, candidates, self.retrieval_config.final_top_k)
             self._log_timing("reranker_total", time.perf_counter() - reranker_start)
 
-        self._log_timing("end_to_end", time.perf_counter() - total_start)
+        self._log_timing("end_to_end_retrieval", time.perf_counter() - total_start)
         
-        # Lưu ý: Cổng kiểm duyệt OOD đã hoàn tất (threshold 0.3).
-        # answer_text dưới đây chỉ là chuỗi tạm thời (placeholder) trả về kết quả
-        # rerank cho đến khi phase Generation v2 được tích hợp.
         answer_text = "Không có đủ thông tin trong tài liệu hiện có để trả lời câu hỏi này."
         refused = True
         top_score = 0.0
         chunks = []
+        contexts = []
 
         if ranked:
             top_score = ranked[0].score
             chunks = [c.chunk_id for c in ranked]
+            contexts = [{"chunk_id": c.chunk_id, "text": c.text, "score": c.score} for c in ranked]
+            
             if top_score < self.retrieval_config.ood_threshold:
                 refused = True
                 answer_text = "Không có đủ thông tin trong tài liệu hiện có để trả lời câu hỏi này."
             else:
                 refused = False
-                answer_text = f"[Placeholder cho Generation v2] Đã tìm thấy {len(ranked)} tài liệu phù hợp."
+                gen_start = time.perf_counter()
+                from generation.generator import generate
+                answer_text = generate(raw_query, contexts)
+                self._log_timing("generation_total", time.perf_counter() - gen_start)
+
+        self._log_timing("end_to_end", time.perf_counter() - total_start)
 
         return FinalResponse(
             answer=answer_text,
             refused=refused,
             top_score=top_score,
-            chunks=chunks
+            chunks=chunks,
+            contexts=contexts
         )
